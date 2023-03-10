@@ -1,5 +1,5 @@
 {
-  "version": "3.2.3",
+  "version": "3.17.2",
   "packages": [
     "packages/*"
   ],
@@ -13,8 +13,9 @@
         "**/examples/*",
         "**/node_modules/**",
         "**/package.json",
-        "**/docs/**",
-        "**/*.md"
+        "**/website/**",
+        "**/*.md",
+        "test/**"
       ]
     },
     "publish": {
@@ -27,8 +28,9 @@
         "**/examples/*",
         "**/node_modules/**",
         "**/package.json",
-        "**/docs/**",
-        "**/*.md"
+        "**/website/**",
+        "**/*.md",
+        "test/**"
       ]
     }
   }

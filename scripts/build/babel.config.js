@@ -1,29 +1,25 @@
 // Babel builder doesn't generate CommonJS, but ES modules.
 // Rollup, however, needs `modules: false, babel modules: true`
-module.exports = function(options) {
+module.exports = function (commonJs) {
   const presets = [
     [
       "@babel/preset-env",
       {
         targets: {
-          node: 8,
-          browsers: "> 1%, last 2 versions"
+          node: 14,
+          browsers: "> 1%, last 2 versions, not dead",
         },
-        modules: options.modules === false ? false : "commonjs"
-      }
+        modules: commonJs === false ? false : "commonjs",
+      },
     ],
     "@babel/preset-typescript",
-    "@babel/preset-react"
+    "@babel/preset-react",
   ]
 
-  const plugins = [
-    "@babel/plugin-proposal-class-properties",
-    "@babel/plugin-proposal-export-default-from",
-    "@babel/plugin-transform-runtime"
-  ]
+  const plugins = ["@babel/plugin-transform-runtime"]
 
   return {
     presets,
-    plugins
+    plugins,
   }
 }

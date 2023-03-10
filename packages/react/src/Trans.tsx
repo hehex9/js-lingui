@@ -6,16 +6,19 @@ import { formatElements } from "./format"
 export type TransRenderProps = {
   id?: string
   translation?: React.ReactNode
-  children?: string | any[] | React.ReactNode
+  children?: React.ReactNode
   message?: string | null
+  isTranslated?: boolean
 }
 
 export type TransProps = {
   id: string
   message?: string
-  values: Object
+  values: Record<string, unknown>
+  context?: string
   components: { [key: string]: React.ElementType | any }
-  formats?: Object
+  formats?: Record<string, unknown>
+  children?: React.ReactNode
   component?: React.ComponentType<TransRenderProps>
   render?: (props: TransRenderProps) => React.ReactElement<any, any> | null
 }
@@ -64,11 +67,18 @@ export function Trans(props: TransProps): React.ReactElement<any, any> | null {
   if (render === null || component === null) {
     // Although `string` is a valid react element, types only allow `Element`
     // Upstream issue: https://github.com/DefinitelyTyped/DefinitelyTyped/issues/20544
-    return (translation as unknown) as React.ReactElement<any, any>
+    return translation as unknown as React.ReactElement<any, any>
   }
 
   const FallbackComponent = (defaultComponent ||
     React.Fragment) as React.ComponentType<any>
+
+  const i18nProps = {
+    id,
+    message,
+    translation,
+    isTranslated: id !== translation && message !== translation,
+  }
 
   // Validation of `render` and `component` props
   if (render && component) {
@@ -85,22 +95,24 @@ export function Trans(props: TransProps): React.ReactElement<any, any> | null {
     console.error(
       `Invalid value supplied to prop \`component\`. It must be a React component, provided ${component}`
     )
-    return <FallbackComponent>{translation}</FallbackComponent>
+    return <FallbackComponent {...i18nProps}>{translation}</FallbackComponent>
   }
 
   // Rendering using a render prop
   if (typeof render === "function") {
     // Component: render={(props) => <a title={props.translation}>x</a>}
-    return render({
-      id,
-      translation,
-      message,
-    })
+    return render(i18nProps)
   }
 
   // `component` prop has a higher precedence over `defaultComponent`
   const Component = (component || FallbackComponent) as React.ComponentType<any>
-  return <Component>{translation}</Component>
+  const DefaultComponent = defaultComponent
+
+  return DefaultComponent && !component ? (
+    <DefaultComponent {...i18nProps}>{translation}</DefaultComponent>
+  ) : (
+    <Component>{translation}</Component>
+  )
 }
 
 Trans.defaultProps = {

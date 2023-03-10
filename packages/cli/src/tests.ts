@@ -3,8 +3,14 @@ import fs from "fs-extra"
 import path from "path"
 
 import { mockConfig } from "@lingui/jest-mocks"
-import { Catalog, MakeOptions, MakeTemplateOptions, MergeOptions , ExtractedMessageType, MessageType } from "./api/catalog"
-
+import {
+  Catalog,
+  MakeOptions,
+  MakeTemplateOptions,
+  MergeOptions,
+  ExtractedMessageType,
+  MessageType,
+} from "./api/catalog"
 
 export function copyFixture(fixtureDir) {
   const tmpDir = fs.mkdtempSync(
@@ -22,11 +28,13 @@ export const defaultMakeOptions: MakeOptions = {
   overwrite: false,
   locale: null,
   prevFormat: null,
+  configPath: null,
   orderBy: "messageId",
 }
 
 export const defaultMakeTemplateOptions: MakeTemplateOptions = {
   verbose: false,
+  configPath: null,
   orderBy: "messageId",
 }
 

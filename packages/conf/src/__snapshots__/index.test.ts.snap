@@ -24,7 +24,7 @@ exports[`@lingui/conf catalogMigration should show deprecation warning 1`] = `
     Please update your configuration.
     
 
-Documentation: https://lingui.js.org/ref/conf.html
+Documentation: https://lingui.dev/ref/conf
 ● Deprecation Warning:
 
  Option srcPathDirs is deprecated. Configure source paths using catalogs instead.
@@ -48,7 +48,7 @@ Documentation: https://lingui.js.org/ref/conf.html
     Please update your configuration.
     
 
-Documentation: https://lingui.js.org/ref/conf.html
+Documentation: https://lingui.dev/ref/conf
 ● Deprecation Warning:
 
  Option srcPathIgnorePatterns is deprecated. Configure excluded source paths using catalogs instead.
@@ -72,10 +72,10 @@ Documentation: https://lingui.js.org/ref/conf.html
     Please update your configuration.
     
 
-Documentation: https://lingui.js.org/ref/conf.html
+Documentation: https://lingui.dev/ref/conf
 `;
 
-exports[`@lingui/conf fallbackLocales logic if fallbackLocale is defined, we use the default one on fallbackLocales 1`] = `
+exports[`@lingui/conf config file fallbackLocales logic if fallbackLocale is defined, we use the default one on fallbackLocales 1`] = `
 ● Deprecation Warning:
 
  Option fallbackLocale was replaced by fallbackLocales
@@ -92,7 +92,7 @@ exports[`@lingui/conf fallbackLocales logic if fallbackLocale is defined, we use
     Please update your configuration.
     
 
-Documentation: https://lingui.js.org/ref/conf.html
+Documentation: https://lingui.dev/ref/conf
 `;
 
 exports[`@lingui/conf should return default config 1`] = `
@@ -108,7 +108,14 @@ Object {
       path: ./locale/{locale}/messages,
     },
   ],
+  catalogsMergePath: ,
   compileNamespace: cjs,
+  compilerBabelOptions: Object {
+    jsescOption: Object {
+      minimal: true,
+    },
+    minified: true,
+  },
   extractBabelOptions: Object {
     plugins: Array [],
     presets: Array [],
@@ -118,6 +125,7 @@ Object {
   },
   format: po,
   formatOptions: Object {
+    lineNumbers: true,
     origins: true,
   },
   locales: Array [
@@ -130,6 +138,10 @@ Object {
     @lingui/core,
     i18n,
   ],
+  service: Object {
+    apiKey: ,
+    name: ,
+  },
   sourceLocale: ,
 }
 `;

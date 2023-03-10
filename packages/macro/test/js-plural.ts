@@ -1,4 +1,6 @@
-export default [
+import { TestCase } from "./index"
+
+const cases: TestCase[] = [
   {
     name: "Macro is used in expression assignment",
     input: `
@@ -10,9 +12,7 @@ export default [
       `,
     expected: `
         import { i18n } from "@lingui/core";
-        const a = 
-          /*i18n*/
-          i18n._("{count, plural, one {# book} other {# books}}", {
+        const a = /*i18n*/ i18n._("{count, plural, one {# book} other {# books}}", {
             count: count
           });
       `,
@@ -30,10 +30,10 @@ export default [
       `,
     expected: `
         import { i18n } from "@lingui/core";
-        /*i18n*/
-        i18n._("{0, plural, offset:1 =0 {No books} =1 {1 book} other {# books}}", {
+        /*i18n*/ i18n._("{0, plural, offset:1 =0 {No books} =1 {1 book} other {# books}}", {
           0: users.length
         });
       `,
   },
 ]
+export default cases

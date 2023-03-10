@@ -1,14 +1,16 @@
 import chalk from "chalk"
+import chokidar from "chokidar"
 import fs from "fs"
 import * as R from "ramda"
 import program from "commander"
 import * as plurals from "make-plural"
 
-import { getConfig } from "@lingui/conf"
+import { getConfig, LinguiConfig } from "@lingui/conf"
 
-import { getCatalogs } from "./api/catalog"
+import { getCatalogForMerge, getCatalogs } from "./api/catalog"
 import { createCompiledCatalog } from "./api/compile"
 import { helpRun } from "./api/help"
+import { getFormat } from "./api"
 
 const noMessages: (catalogs: Object[]) => boolean = R.pipe(
   R.map(R.isEmpty),
@@ -16,9 +18,18 @@ const noMessages: (catalogs: Object[]) => boolean = R.pipe(
   R.all(R.equals<any>(true))
 )
 
-function command(config, options) {
+export type CliCompileOptions = {
+  verbose?: boolean
+  allowEmpty?: boolean
+  typescript?: boolean
+  watch?: boolean
+  namespace?: string
+}
+
+export function command(config: LinguiConfig, options: CliCompileOptions) {
   const catalogs = getCatalogs(config)
 
+  // fixme: this is definitely doesn't work
   if (noMessages(catalogs)) {
     console.error("Nothing to compile, message catalogs are empty!\n")
     console.error(
@@ -33,33 +44,30 @@ function command(config, options) {
   const doMerge = !!config.catalogsMergePath
   let mergedCatalogs = {}
 
-  console.error("Compiling message catalogs…")
+  console.log("Compiling message catalogs…")
 
-  config.locales.forEach((locale) => {
+  for (const locale of config.locales) {
     const [language] = locale.split(/[_-]/)
+    // todo: this validation should be in @lingui/conf
     if (locale !== config.pseudoLocale && !plurals[language]) {
-      console.log(
+      console.error(
         chalk.red(
           `Error: Invalid locale ${chalk.bold(locale)} (missing plural rules)!`
         )
       )
       console.error()
-      process.exit(1)
     }
 
-    catalogs.forEach((catalog) => {
-      const messages = catalog.getTranslations(
-        locale,
-        {
-          fallbackLocales: config.fallbackLocales,
-          sourceLocale: config.sourceLocale,
-        }
-      )
+    for (const catalog of catalogs) {
+      const messages = catalog.getTranslations(locale, {
+        fallbackLocales: config.fallbackLocales,
+        sourceLocale: config.sourceLocale,
+      })
 
       if (!options.allowEmpty) {
-        const missing = R.values(messages)
+        const missingMsgIds = R.pipe(R.pickBy(R.isNil), R.keys)(messages)
 
-        if (missing.some(R.isNil)) {
+        if (missingMsgIds.length > 0) {
           console.error(
             chalk.red(
               `Error: Failed to compile catalog for locale ${chalk.bold(
@@ -70,23 +78,28 @@ function command(config, options) {
 
           if (options.verbose) {
             console.error(chalk.red("Missing translations:"))
-            missing.forEach((msgId) => console.log(msgId))
+            missingMsgIds.forEach((msgId) => console.error(msgId))
           } else {
-            console.error(chalk.red(`Missing ${missing.length} translation(s)`))
+            console.error(
+              chalk.red(`Missing ${missingMsgIds.length} translation(s)`)
+            )
           }
           console.error()
-          process.exit(1)
+          return false
         }
       }
 
       if (doMerge) {
         mergedCatalogs = { ...mergedCatalogs, ...messages }
       } else {
-        const namespace = options.namespace || config.compileNamespace
+        const namespace = options.typescript
+          ? "ts"
+          : options.namespace || config.compileNamespace
         const compiledCatalog = createCompiledCatalog(locale, messages, {
           strict: false,
           namespace,
           pseudoLocale: config.pseudoLocale,
+          compilerBabelOptions: config.compilerBabelOptions,
         })
 
         const compiledPath = catalog.writeCompiled(
@@ -96,7 +109,7 @@ function command(config, options) {
         )
 
         if (options.typescript) {
-          const typescriptPath = compiledPath.replace(/\.jsx?$/, "") + ".d.ts"
+          const typescriptPath = compiledPath.replace(/\.ts?$/, "") + ".d.ts"
           fs.writeFileSync(
             typescriptPath,
             `import { Messages } from '@lingui/core';
@@ -109,8 +122,25 @@ function command(config, options) {
         options.verbose &&
           console.error(chalk.green(`${locale} ⇒ ${compiledPath}`))
       }
-    })
-  })
+    }
+
+    if (doMerge) {
+      const compileCatalog = getCatalogForMerge(config)
+      const namespace = options.namespace || config.compileNamespace
+      const compiledCatalog = createCompiledCatalog(locale, mergedCatalogs, {
+        strict: false,
+        namespace: namespace,
+        pseudoLocale: config.pseudoLocale,
+        compilerBabelOptions: config.compilerBabelOptions,
+      })
+      const compiledPath = compileCatalog.writeCompiled(
+        locale,
+        compiledCatalog,
+        namespace
+      )
+      options.verbose && console.log(chalk.green(`${locale} ⇒ ${compiledPath}`))
+    }
+  }
   return true
 }
 
@@ -128,6 +158,11 @@ if (require.main === module) {
       "--namespace <namespace>",
       "Specify namespace for compiled bundle. Ex: cjs(default) -> module.exports, es -> export, window.test -> window.test"
     )
+    .option("--watch", "Enables Watch Mode")
+    .option(
+      "--debounce <delay>",
+      "Debounces compilation for given amount of milliseconds"
+    )
     .on("--help", function () {
       console.log("\n  Examples:\n")
       console.log(
@@ -135,7 +170,7 @@ if (require.main === module) {
       )
       console.log(`    $ ${helpRun("compile")}`)
       console.log("")
-      console.log("    # Compile translations but fail when there're missing")
+      console.log("    # Compile translations but fail when there are missing")
       console.log("    # translations (don't replace missing translations with")
       console.log("    # default messages or message IDs)")
       console.log(`    $ ${helpRun("compile --strict")}`)
@@ -147,21 +182,67 @@ if (require.main === module) {
   if (program.format) {
     const msg =
       "--format option is deprecated and will be removed in @lingui/cli@3.0.0." +
-      " Please set format in configuration https://lingui.js.org/ref/conf.html#format"
+      " Please set format in configuration https://lingui.dev/ref/conf#format"
     console.warn(msg)
     config.format = program.format
   }
 
-  const results = command(config, {
-    verbose: program.verbose || false,
-    allowEmpty: !program.strict,
-    typescript: program.typescript || false,
-    namespace: program.namespace, // we want this to be undefined if user does not specify so default can be used
-  })
+  const compile = () =>
+    command(config, {
+      verbose: program.watch || program.verbose || false,
+      allowEmpty: !program.strict,
+      typescript:
+        program.typescript || config.compileNamespace === "ts" || false,
+      namespace: program.namespace, // we want this to be undefined if user does not specify so default can be used
+    })
 
-  if (!results) {
-    process.exit(1)
+  let debounceTimer: NodeJS.Timer
+  const dispatchCompile = () => {
+    // Skip debouncing if not enabled
+    if (!program.debounce) return compile()
+
+    // CLear the previous timer if there is any, and schedule the next
+    debounceTimer && clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => compile(), program.debounce)
   }
 
-  console.log("Done!")
+  // Check if Watch Mode is enabled
+  if (program.watch) {
+    console.info(chalk.bold("Initializing Watch Mode..."))
+
+    const catalogs = getCatalogs(config)
+    let paths = []
+    const catalogExtension = getFormat(config.format).catalogExtension
+
+    config.locales.forEach((locale) => {
+      catalogs.forEach((catalog) => {
+        paths.push(
+          `${catalog.path
+            .replace(/{locale}/g, locale)
+            .replace(/{name}/g, "*")}${catalogExtension}`
+        )
+      })
+    })
+
+    const watcher = chokidar.watch(paths, {
+      persistent: true,
+    })
+
+    const onReady = () => {
+      console.info(chalk.green.bold("Watcher is ready!"))
+      watcher
+        .on("add", () => dispatchCompile())
+        .on("change", () => dispatchCompile())
+    }
+
+    watcher.on("ready", () => onReady())
+  } else {
+    const results = compile()
+
+    if (!results) {
+      process.exit(1)
+    }
+
+    console.log("Done!")
+  }
 }

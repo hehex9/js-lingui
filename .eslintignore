@@ -2,5 +2,7 @@
 **/node_modules/*
 **/fixtures/*
 **/locale/*
-docs/*
+website/*
 README.md
+**/npm/*
+/packages/*/build/**

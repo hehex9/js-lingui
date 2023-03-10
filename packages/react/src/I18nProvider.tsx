@@ -1,9 +1,10 @@
-import React, { FunctionComponent, ComponentType } from "react"
+import React, { ComponentType, FunctionComponent } from "react"
 import { I18n } from "@lingui/core"
+import { TransRenderProps } from "./Trans"
 
 export type I18nContext = {
   i18n: I18n
-  defaultComponent?: React.ReactElement<any, any> | null
+  defaultComponent?: ComponentType<TransRenderProps>
 }
 
 export type withI18nProps = {
@@ -12,6 +13,7 @@ export type withI18nProps = {
 
 export type I18nProviderProps = I18nContext & {
   forceRenderOnLocaleChange?: boolean
+  children?: React.ReactNode
 }
 
 const LinguiContext = React.createContext<I18nContext>(null)
@@ -32,7 +34,7 @@ export function withI18n(
   o?: object
 ): <P extends withI18nProps>(
   Component: ComponentType<P>
-) => React.ComponentType<Omit<P, 'i18n'>> {
+) => React.ComponentType<Omit<P, "i18n">> {
   return <P extends withI18nProps>(
     WrappedComponent: ComponentType<P>
   ): ComponentType<P> => {
@@ -75,7 +77,9 @@ export const I18nProvider: FunctionComponent<I18nProviderProps> = ({
     defaultComponent,
   })
   const getRenderKey = () => {
-    return (forceRenderOnLocaleChange ? (i18n.locale || 'default') : 'default') as string
+    return (
+      forceRenderOnLocaleChange ? i18n.locale || "default" : "default"
+    ) as string
   }
 
   const [context, setContext] = React.useState<I18nContext>(makeContext()),
@@ -98,16 +102,18 @@ export const I18nProvider: FunctionComponent<I18nProviderProps> = ({
       setContext(makeContext())
       setRenderKey(getRenderKey())
     })
-    if (renderKey === 'default') {
+    if (renderKey === "default") {
       setRenderKey(getRenderKey())
     }
-    if (forceRenderOnLocaleChange && renderKey === 'default') {
-      console.log("I18nProvider did not render. A call to i18n.activate still needs to happen or forceRenderOnLocaleChange must be set to false.")
+    if (forceRenderOnLocaleChange && renderKey === "default") {
+      console.log(
+        "I18nProvider did not render. A call to i18n.activate still needs to happen or forceRenderOnLocaleChange must be set to false."
+      )
     }
     return () => unsubscribe()
   }, [])
 
-  if (forceRenderOnLocaleChange && renderKey === 'default') return null
+  if (forceRenderOnLocaleChange && renderKey === "default") return null
 
   return (
     <LinguiContext.Provider value={context} key={renderKey}>

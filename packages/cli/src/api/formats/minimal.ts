@@ -1,29 +1,41 @@
 import fs from "fs"
 import * as R from "ramda"
 
-import { writeFileIfChanged } from "../utils"
 import { MessageType, CatalogType } from "../catalog"
 import { CatalogFormatter } from "."
 
 type MinimalCatalogType = Record<string, string>
 
-const serialize = (R.map(
+const serialize = R.map(
   (message: MessageType) => message.translation || ""
-) as unknown) as (catalog: CatalogType) => MinimalCatalogType
+) as unknown as (catalog: CatalogType) => MinimalCatalogType
 
-const deserialize = (R.map((translation: string) => ({
+const deserialize = R.map((translation: string) => ({
   translation,
   obsolete: false,
   message: null,
   origin: [],
-})) as unknown) as (minimalCatalog: MinimalCatalogType) => CatalogType
+})) as unknown as (minimalCatalog: MinimalCatalogType) => CatalogType
 
 const minimal: CatalogFormatter = {
   catalogExtension: ".json",
 
   write(filename, catalog) {
     const messages = serialize(catalog)
-    writeFileIfChanged(filename, JSON.stringify(messages, null, 2))
+    let file = null
+    try {
+      file = fs.readFileSync(filename, "utf8")
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error
+      }
+    }
+    const shouldUseTrailingNewline = file === null || file?.endsWith("\n")
+    const trailingNewLine = shouldUseTrailingNewline ? "\n" : ""
+    fs.writeFileSync(
+      filename,
+      `${JSON.stringify(messages, null, 2)}${trailingNewLine}`
+    )
   },
 
   read(filename) {
@@ -33,9 +45,12 @@ const minimal: CatalogFormatter = {
       const rawCatalog: Record<string, string> = JSON.parse(raw)
       return deserialize(rawCatalog)
     } catch (e) {
-      console.error(`Cannot read ${filename}: ${e.message}`)
-      return null
+      throw new Error(`Cannot read ${filename}: ${e.message}`)
     }
+  },
+
+  parse(content: Record<string, any>) {
+    return deserialize(content)
   },
 }
 

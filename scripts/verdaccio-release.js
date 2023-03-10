@@ -2,8 +2,6 @@ const { exec: _exec } = require("child_process")
 const chalk = require("chalk")
 const ora = require("ora")
 
-const LERNA_COMMAND = "./node_modules/.bin/lerna"
-
 async function releaseInVerdaccio() {
   const spinner = ora()
 
@@ -14,23 +12,16 @@ async function releaseInVerdaccio() {
   )
   spinner.succeed()
 
-  spinner.start("Versioning packages")
-  const { stdout: actualBranch } = await exec("git rev-parse --abbrev-ref HEAD")
-  await exec(`${LERNA_COMMAND} version patch --no-git-tag-version --force-publish --no-private --no-push --yes --allow-branch ${actualBranch}`)
-  spinner.succeed()
-
   spinner.start("Building packages")
   await exec("yarn release:build")
   spinner.succeed()
 
-  spinner.start("Dont't mark files as changed to let publish, but not create a git history")
-  await exec("git ls-files -m | xargs git update-index --assume-unchanged");
-  spinner.succeed()
+  spinner.start("Versioning and Publishing packages to local registry")
+  const { stdout: actualBranch } = await exec("git rev-parse --abbrev-ref HEAD")
 
-  spinner.start("Publishing packages to local registry")
   await exec(
-    `${LERNA_COMMAND} publish from-package --force-publish --no-git-tag-version --no-private --no-push --yes --allow-branch ${actualBranch} --contents build --registry="http://0.0.0.0:4873"
-  `)
+    `npx lerna publish patch --force-publish --no-git-tag-version --no-private --no-push --yes --allow-branch ${actualBranch} --registry="http://0.0.0.0:4873"`
+  )
   spinner.succeed()
 
   console.log()
@@ -39,9 +30,6 @@ async function releaseInVerdaccio() {
       "npm install --registry http://0.0.0.0:4873 @lingui/[package]"
     )} in target project to install development version of package.`
   )
-
-  // we revert the changed files from index
-  await exec("git ls-files -v | grep '^[a-z]' | cut -c3- | xargs git update-index --no-assume-unchanged --");
 }
 
 function exec(cmd, options) {
@@ -60,6 +48,7 @@ function exec(cmd, options) {
         resolve({ stdout, stderr })
       } else {
         reject({ error, stdout, stderr })
+        console.error(stderr)
         process.exit(1)
       }
     })

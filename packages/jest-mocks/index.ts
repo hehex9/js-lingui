@@ -7,12 +7,15 @@ export function mockConfig(config: Partial<LinguiConfig> = {}) {
   }
 }
 
-export function getConsoleMockCalls({ mock }) {
+export function getConsoleMockCalls({ mock }: jest.MockInstance<any, any>) {
   if (!mock.calls.length) return
   return mock.calls.map((call) => call[0]).join("\n")
 }
 
-export function mockConsole(testCase, mock = {}) {
+export function mockConsole(
+  testCase: (console: jest.Mocked<Console>) => any,
+  mock = {}
+) {
   function restoreConsole() {
     global.console = originalConsole
   }
@@ -25,15 +28,14 @@ export function mockConsole(testCase, mock = {}) {
     error: jest.fn(),
   }
 
-  // @ts-ignore: Lot of console methods are missing
   global.console = {
     ...defaults,
     ...mock,
-  }
+  } as any
 
   let result
   try {
-    result = testCase(global.console)
+    result = testCase(global.console as jest.Mocked<Console>)
   } catch (e) {
     restoreConsole()
     throw e

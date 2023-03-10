@@ -1,4 +1,6 @@
-export default [
+import { TestCase } from "./index"
+
+const cases: TestCase[] = [
   {
     name: "Arg macro should be exluded from values",
     input: `
@@ -7,9 +9,9 @@ export default [
     `,
     expected: `
         import { i18n } from "@lingui/core";
-        const a = 
-          /*i18n*/
-          i18n._("Hello {name}")
+        const a = /*i18n*/ i18n._("Hello {name}")
     `,
   },
 ]
+
+export default cases

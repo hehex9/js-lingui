@@ -3,7 +3,18 @@ import path from "path"
 import { transformFileSync, TransformOptions, transformSync } from "@babel/core"
 import prettier from "prettier"
 
-const testCases = {
+export type TestCase = {
+  name?: string
+  input?: string
+  expected?: string
+  filename?: string
+  production?: boolean
+  useTypescriptPreset?: boolean
+  only?: boolean
+  skip?: boolean
+}
+
+const testCases: Record<string, TestCase[]> = {
   "js-arg": require("./js-arg").default,
   "js-t": require("./js-t").default,
   "js-plural": require("./js-plural").default,
@@ -17,15 +28,29 @@ const testCases = {
 }
 
 describe("macro", function () {
+  process.env.LINGUI_CONFIG = path.join(__dirname, "lingui.config.js")
+
   const babelOptions: TransformOptions = {
     filename: "<filename>",
     configFile: false,
     presets: [],
-    plugins: ["@babel/plugin-syntax-jsx", "macros"],
+    plugins: [
+      "@babel/plugin-syntax-jsx",
+      [
+        "macros",
+        {
+          // macro plugin uses package `resolve` to find a path of macro file
+          // this will not follow jest pathMapping and will resolve path from ./build
+          // instead of ./src which makes testing & developing hard.
+          // here we override resolve and provide correct path for testing
+          resolvePath: (source: string) => require.resolve(source),
+        },
+      ],
+    ],
   }
 
   // return function, so we can test exceptions
-  const transformCode = (code) => () => {
+  const transformCode = (code: string) => () => {
     try {
       return transformSync(code, babelOptions).code.trim()
     } catch (e) {
@@ -38,12 +63,21 @@ describe("macro", function () {
     describe(suiteName, () => {
       const cases = testCases[suiteName]
 
-      const clean = (value) =>
+      const clean = (value: string) =>
         prettier.format(value, { parser: "babel" }).replace(/\n+/, "\n")
 
       cases.forEach(
         (
-          { name, input, expected, filename, production, useTypescriptPreset, only, skip },
+          {
+            name,
+            input,
+            expected,
+            filename,
+            production,
+            useTypescriptPreset,
+            only,
+            skip,
+          },
           index
         ) => {
           let run = it
@@ -61,8 +95,6 @@ describe("macro", function () {
             if (useTypescriptPreset) {
               babelOptions.presets.push("@babel/preset-typescript")
             }
-
-            process.env.LINGUI_CONFIG = path.join(__dirname, "lingui.config.js")
 
             try {
               if (filename) {
@@ -98,6 +130,13 @@ describe("macro", function () {
         }
       )
     })
+  })
+
+  it("Should throw error if used without babel-macro-plugin", async () => {
+    await expect(async () => {
+      const mod = await import("../src/index")
+      return (mod as unknown as typeof import("@lingui/macro")).Trans
+    }).rejects.toThrow('The macro you imported from "@lingui/macro"')
   })
 
   describe.skip("validation", function () {
